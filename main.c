@@ -80,6 +80,8 @@ int main(int argc, char *argv[]) {
                     // add the command to the list
                     commands[command_count] = &input[command_start];
                     command_separator[command_count] = input[i];
+                    // Add null terminator
+                    input[i] = '\0';
                     command_count++;
                     if (command_count >= MAX_COMMANDS) {
                         // reached the maximum number of commands
