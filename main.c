@@ -17,7 +17,8 @@ int execute_command(char *command, char *paths[], FILE *output_file);
 void update_paths(char *paths[], char *op, char *arg);
 
 int main(int argc, char *argv[]) {
-    char *paths[MAX_PATHS] = {"/bin", "/usr/bin"}; // Default paths
+    // "Your initial shell path should contain one directory: /bin"
+    char *paths[MAX_PATHS] = {"/bin"};
     FILE *batch_file = NULL;
     char input[MAX_INPUT];
 
@@ -119,8 +120,8 @@ int main(int argc, char *argv[]) {
             if (output_str != NULL) {
                 output_file = fopen(output_str, "w");
                 if (output_file == NULL) {
-                    perror(output_redirect);
-                    exit(EXIT_FAILURE);
+                    // Stop parsing this line
+                    break;
                 }
             }
 
@@ -151,7 +152,6 @@ int main(int argc, char *argv[]) {
                 char *arg = strtok(NULL, " ");
                 if (strtok(NULL, " ") != NULL) {
                     write(STDERR_FILENO, error_message, strlen(error_message));
-                    isRunning = 0;
                     break;
                 }
                 update_paths(paths, op, arg);
@@ -216,8 +216,12 @@ int execute_command(char *command, char *paths[], FILE *output_file) {
             snprintf(path, MAX_INPUT, "%s/%s", paths[i], args[0]);
             if (access(path, X_OK) == 0) {
                 if (output_file != NULL && dup2(fileno(output_file), STDOUT_FILENO) == -1) {
-                    perror("dup2");
-                    exit(EXIT_FAILURE);
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                    exit(1);
+                }
+                if (output_file != NULL && dup2(fileno(output_file), STDERR_FILENO) == -1) {
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                    exit(1);
                 }
                 execv(path, args);
                 found = 1;
@@ -237,7 +241,7 @@ int execute_command(char *command, char *paths[], FILE *output_file) {
 void update_paths(char *paths[], char *op, char *arg) {
     if (strcmp(op, "add") == 0) {
         if (arg == NULL) {
-            fprintf(stderr, "Error: Missing argument for 'add' command\n");
+            write(STDERR_FILENO, error_message, strlen(error_message));
             return;
         }
 
@@ -249,7 +253,7 @@ void update_paths(char *paths[], char *op, char *arg) {
         }
     } else if (strcmp(op, "remove") == 0) {
         if (arg == NULL) {
-            fprintf(stderr, "Error: Missing argument for 'add' command\n");
+            write(STDERR_FILENO, error_message, strlen(error_message));
             return;
         }
 
@@ -263,17 +267,17 @@ void update_paths(char *paths[], char *op, char *arg) {
             }
         }
         if (!found) {
-            fprintf(stderr, "Error: Path '%s' not found\n", arg);
+            write(STDERR_FILENO, error_message, strlen(error_message));
         }
     } else if (strcmp(op, "clear") == 0) {
         if (arg != NULL) {
-            fprintf(stderr, "Error: 'clear' command does not take arguments\n");
+            write(STDERR_FILENO, error_message, strlen(error_message));
             return;
         }
         for (int i = 0; i < MAX_PATHS; i++) {
             paths[i] = NULL;
         }
     } else {
-        fprintf(stderr, "Error: Invalid path command '%s'\n", op);
+        write(STDERR_FILENO, error_message, strlen(error_message));
     }
 }
