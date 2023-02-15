@@ -12,7 +12,7 @@
 
 char error_message[30] = "An error has occurred\n";
 
-void execute_command(char *command, char *paths[], FILE *output_file);
+int execute_command(char *command, char *paths[], FILE *output_file);
 
 void update_paths(char *paths[], char *op, char *arg);
 
@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
 
         char *commands[MAX_COMMANDS];
         char command_separator[MAX_COMMANDS];
+        int command_pid[MAX_COMMANDS] = {0}; // zero this array
 
         int input_length = strlen(input);
         int command_start = 0; // index of the start of the current command
@@ -154,10 +155,36 @@ int main(int argc, char *argv[]) {
                 update_paths(paths, op, arg);
             } else {
                 // Execute command
-                execute_command(command, paths, output_file);
+                int pid = execute_command(command, paths, output_file);
+
+                char curCommandSeparator = command_separator[j];
+                if (pid > 0) {
+                    // parent
+                    int status;
+                    // & is a special case where we should execute in parallel
+                    if (curCommandSeparator == '&') {
+                        command_pid[j] = pid;
+                    } else {
+                        waitpid(pid, &status, 0);
+                    }
+                } else {
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                }
             }
 
             j++;
+        }
+
+        int k = 0;
+        while (k < j) {
+            int status;
+
+            int pid = command_pid[k];
+            if (pid != 0) {
+                waitpid(pid, &status, 0);
+            }
+
+            k++;
         }
     }
 
@@ -168,7 +195,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void execute_command(char *command, char *paths[], FILE *output_file) {
+int execute_command(char *command, char *paths[], FILE *output_file) {
     char *args[MAX_INPUT / 2 + 1];
     char *arg = strtok(command, " ");
     int i = 0;
@@ -199,13 +226,9 @@ void execute_command(char *command, char *paths[], FILE *output_file) {
             write(STDERR_FILENO, error_message, strlen(error_message));
             exit(1);
         }
-    } else if (pid > 0) {
-        // parent
-        int status;
-        waitpid(pid, &status, 0);
-    } else {
-        write(STDERR_FILENO, error_message, strlen(error_message));
     }
+    // parent process
+    return pid;
 }
 
 // Complicated enough to justify it's own function
