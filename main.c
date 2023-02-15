@@ -61,34 +61,45 @@ int main(int argc, char *argv[]) {
         // Remove newline character from input
         input[strcspn(input, "\n")] = '\0';
 
+        // Parse multiple commands separated by ';' or '&'
         char *separator = ";&";
-
-        char input_copy[MAX_INPUT]; // create a copy of the input string
-        strcpy(input_copy, input);
 
         char *commands[MAX_COMMANDS];
         char command_separator[MAX_COMMANDS];
 
-        char *command = strtok(input_copy, separator);
-        int i = 0;
-        while (command != NULL) {
-            // get length of initial segment consisting of non-separator characters
-            size_t separator_len = strcspn(input, separator);
-            if (separator_len < strlen(input)) {
-                command_separator[i] = input[separator_len]; // separator character is the command separator
+        int input_length = strlen(input);
+        int command_start = 0; // index of the start of the current command
+        int command_count = 0;
+
+        for (int i = 0; i < input_length; i++) {
+            if (strchr(separator, input[i]) != NULL) {
+                // found a command separator
+                int command_length = i - command_start;
+                if (command_length > 0) {
+                    // add the command to the list
+                    commands[command_count] = &input[command_start];
+                    command_separator[command_count] = input[i];
+                    command_count++;
+                    if (command_count >= MAX_COMMANDS) {
+                        // reached the maximum number of commands
+                        break;
+                    }
+                }
+                command_start = i + 1;
             }
-            commands[i] = command;
-            i = i + 1;
-            command = strtok(NULL, separator);
         }
 
-        // Add a NULL command at the end of the list
-        commands[i] = NULL;
-
-        // Set the command separator for the last command to ';', since there is no separator after the last command
-        if (i > 0 && command_separator[i - 1] == '&') {
-            command_separator[i - 1] = ';';
+        // add the last command to the list
+        int command_length = input_length - command_start;
+        if (command_length > 0) {
+            commands[command_count] = &input[command_start];
+            command_separator[command_count] = ';'; // last command is terminated by ';'
+            command_count++;
         }
+
+        // add a NULL command at the end of the list
+        commands[command_count] = NULL;
+
         int j = 0;
         while (commands[j] != NULL) {
             char *output_str = NULL;
