@@ -10,20 +10,17 @@
 #define MAX_COMMANDS 64
 
 char error_message[30] = "An error has occurred\n";
-// Flag to stop running
-int isRunning = 1;
 
 int execute_command(char *command, char *paths[], FILE *output_file);
 
 void update_paths(char *paths[], char *op, char *arg);
 
 void sig_stop_handler(int sig) {
-    printf("\nCaught SIGTSTP signal\n");
-    isRunning = 0;
+    exit(0);
 }
 
 int main(int argc, char *argv[]) {
-    // TODO: Does this actually do anything? ZSH seems to be handling this input rather than
+    // TODO: Test on other shells than just ZSH
     signal(SIGSTOP, sig_stop_handler);
 
     // "Your initial shell path should contain one directory: /bin"
@@ -47,7 +44,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // infinite loop to keep asking the user questions
+    // Keep looping until
+    int isRunning = 1;
     while (isRunning) {
         if (batch_file) {
             // we get our input from a file
@@ -118,9 +116,22 @@ int main(int argc, char *argv[]) {
             // Check for output redirection
             char *output_redirect = strchr(commands[j], '>');
             if (output_redirect != NULL) {
+                // Check for multiple output redirection commands
+                char *second_output_redirect = strchr(output_redirect + 1, '>');
+                if (second_output_redirect != NULL) {
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                    break;
+                }
                 output_str = strtok(output_redirect + 1, " ");
+                // Check for multiple output files
+                char *second_output_str = strtok(NULL, " ");
+                if (second_output_str != NULL) {
+                    write(STDERR_FILENO, error_message, strlen(error_message));
+                    break;
+                }
                 commands[j][output_redirect - commands[j]] = '\0';
             }
+
 
             // Open the file for redirection while we can still exit early
             FILE *output_file = NULL;
@@ -132,13 +143,13 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            // Remove leading/trailing whitespace from command
+            // Remove leading and trailing spaces and tabs
             char *command = commands[j];
-            while (*command == ' ') {
+            while (*command == ' ' || *command == '\t') {
                 command++;
             }
             char *end = command + strlen(command) - 1;
-            while (*end == ' ' && end > command) {
+            while ((*end == ' ' || *end == '\t') && end > command) {
                 end--;
             }
             // Make the string end where there is whitespace
@@ -198,10 +209,6 @@ int main(int argc, char *argv[]) {
 
             k++;
         }
-    }
-
-    if (batch_file) {
-        fclose(batch_file);
     }
 
     return 0;
