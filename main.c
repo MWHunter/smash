@@ -20,7 +20,6 @@ int main(int argc, char *argv[]) {
     char *paths[MAX_PATHS] = {"/bin", "/usr/bin"}; // Default paths
     FILE *batch_file = NULL;
     char input[MAX_INPUT];
-    char *commands[MAX_COMMANDS];
 
     // Check if we were provided multiple batch files, which isn't allowed
     if (argc > 2) {
@@ -62,17 +61,34 @@ int main(int argc, char *argv[]) {
         // Remove newline character from input
         input[strcspn(input, "\n")] = '\0';
 
-        // Parse multiple commands separated by ';' or '&'
         char *separator = ";&";
 
-        char *command = strtok(input, separator);
+        char input_copy[MAX_INPUT]; // create a copy of the input string
+        strcpy(input_copy, input);
+
+        char *commands[MAX_COMMANDS];
+        char command_separator[MAX_COMMANDS];
+
+        char *command = strtok(input_copy, separator);
         int i = 0;
         while (command != NULL) {
-            commands[i++] = command;
+            // get length of initial segment consisting of non-separator characters
+            size_t separator_len = strcspn(input, separator);
+            if (separator_len < strlen(input)) {
+                command_separator[i] = input[separator_len]; // separator character is the command separator
+            }
+            commands[i] = command;
+            i = i + 1;
             command = strtok(NULL, separator);
         }
+
+        // Add a NULL command at the end of the list
         commands[i] = NULL;
 
+        // Set the command separator for the last command to ';', since there is no separator after the last command
+        if (i > 0 && command_separator[i - 1] == '&') {
+            command_separator[i - 1] = ';';
+        }
         int j = 0;
         while (commands[j] != NULL) {
             char *output_str = NULL;
