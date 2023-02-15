@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -11,12 +10,22 @@
 #define MAX_COMMANDS 64
 
 char error_message[30] = "An error has occurred\n";
+// Flag to stop running
+int isRunning = 1;
 
 int execute_command(char *command, char *paths[], FILE *output_file);
 
 void update_paths(char *paths[], char *op, char *arg);
 
+void sig_stop_handler(int sig) {
+    printf("\nCaught SIGTSTP signal\n");
+    isRunning = 0;
+}
+
 int main(int argc, char *argv[]) {
+    // TODO: Does this actually do anything? ZSH seems to be handling this input rather than
+    signal(SIGSTOP, sig_stop_handler);
+
     // "Your initial shell path should contain one directory: /bin"
     char *paths[MAX_PATHS] = {"/bin"};
     FILE *batch_file = NULL;
@@ -38,8 +47,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Flag to stop running, due to the need to break out of inner loops
-    int isRunning = 1;
     // infinite loop to keep asking the user questions
     while (isRunning) {
         if (batch_file) {
@@ -47,15 +54,14 @@ int main(int argc, char *argv[]) {
             if (fgets(input, MAX_INPUT, batch_file) == NULL) {
                 return 0;  // End of batch file
             }
-            printf("%s", input);
         } else {
             // Only print the prompt when not executing a batch file
             printf("smash> ");
-            // Flush because we don't use a newline at the end, which stops some automatic behavior
+            // Flush because we don't use a newline at the end, which stops some automatic behavior to autoflush
             fflush(stdout);
 
             if (fgets(input, MAX_INPUT, stdin) == NULL) {
-                break;  // End of input
+                break;
             }
         }
 
@@ -84,7 +90,7 @@ int main(int argc, char *argv[]) {
                     // Add null terminator
                     input[i] = '\0';
                     command_count++;
-                    if (command_count >= MAX_COMMANDS) {
+                    if (command_count >= MAX_COMMANDS - 1) {
                         // reached the maximum number of commands
                         break;
                     }
@@ -97,7 +103,8 @@ int main(int argc, char *argv[]) {
         int command_length = input_length - command_start;
         if (command_length > 0) {
             commands[command_count] = &input[command_start];
-            command_separator[command_count] = ';'; // last command is terminated by ';'
+            // last command is terminated by ';' to make things easier
+            command_separator[command_count] = ';';
             command_count++;
         }
 
@@ -137,7 +144,10 @@ int main(int argc, char *argv[]) {
             // Make the string end where there is whitespace
             *(end + 1) = '\0';
 
-            if (strcmp(command, "exit") == 0) {
+            if (strlen(command) == 0) {
+                j++;
+                continue;
+            } else if (strcmp(command, "exit") == 0) {
                 // If only all commands were this simple
                 isRunning = 0;
                 break;
