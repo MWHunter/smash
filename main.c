@@ -24,7 +24,9 @@ int main(int argc, char *argv[]) {
     signal(SIGSTOP, sig_stop_handler);
 
     // "Your initial shell path should contain one directory: /bin"
-    char *paths[MAX_PATHS] = {"/bin"};
+    char *paths[MAX_PATHS] = {};
+    paths[0] = strdup("/bin");
+
     FILE *batch_file = NULL;
     char input[MAX_INPUT];
 
@@ -264,7 +266,7 @@ void update_paths(char *paths[], char *op, char *arg) {
 
         for (int i = 0; i < MAX_PATHS; i++) {
             if (paths[i] == NULL) {
-                paths[i] = arg;
+                paths[i] = strdup(arg);;
                 break;
             }
         }
@@ -277,6 +279,7 @@ void update_paths(char *paths[], char *op, char *arg) {
         int found = 0;
         for (int i = 0; i < MAX_PATHS; i++) {
             if (paths[i] != NULL && strcmp(paths[i], arg) == 0) {
+                free(paths[i]); // stop memory leak
                 found = 1;
             }
             if (found && i != MAX_PATHS - 1) {
