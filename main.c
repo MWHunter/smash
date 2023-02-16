@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
                 break;
             } else if (strncmp(command, "cd ", 3) == 0) {
                 // cd command
-                if (chdir(input + 3) == -1) {
+                if (chdir(command + 3) == -1) {
                     write(STDERR_FILENO, error_message, strlen(error_message));
                 }
             } else if (strncmp(command, "path", 4) == 0) {
